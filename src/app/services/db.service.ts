@@ -1,7 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import { defineCustomElements as jeepSqlite } from 'jeep-sqlite/loader';
-import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
+import {
+  CapacitorSQLite,
+  SQLiteConnection,
+  SQLiteDBConnection,
+  CapacitorSQLitePlugin,
+  capSQLiteUpgradeOptions
+} from '@capacitor-community/sqlite';
 
 jeepSqlite(window);
 
@@ -9,15 +15,24 @@ jeepSqlite(window);
   providedIn: 'root'
 })
 export class DbService {
-  private sqlite: SQLiteConnection;
-  private db!: SQLiteDBConnection;
+  sqliteConnection!: SQLiteConnection;
+  sqlitePlugin!: CapacitorSQLitePlugin;
+  platform!: string;
+  native: boolean = false;
+  isService: boolean = false;
+  db!: SQLiteDBConnection;
 
   constructor(
   ) {
-    this.sqlite = new SQLiteConnection(CapacitorSQLite);
   }
 
-  async initDB() {
+  async initializePlugin(): Promise<boolean> {
+    this.platform = Capacitor.getPlatform();
+    this.native = this.platform === 'android' || this.platform === 'ios';
+    this.sqlitePlugin = CapacitorSQLite;
+    this.sqliteConnection = new SQLiteConnection(this.sqlitePlugin);
+    this.isService = true;
+
     if (Capacitor.getPlatform() === 'web') {
       if (!document.querySelector('jeep-sqlite')) {
         const jeepEl = document.createElement('jeep-sqlite');
@@ -26,26 +41,74 @@ export class DbService {
 
       await customElements.whenDefined('jeep-sqlite');
 
-      await this.sqlite.initWebStore();
+      await this.sqliteConnection.initWebStore();
     }
 
-    this.db = await this.sqlite.createConnection(
-      'test_ionic',
-      false,
-      'no-encryption',
-      1,
-      false
-    );
+    return true;
+  }
+  
+  async initWebStore(): Promise<void> {
+    try {
+      if (this.platform === 'web') {
+        await this.sqliteConnection.initWebStore();
+      }
+    } catch (err: any) {
+      return Promise.reject(`initWebStore: ${err.message || err}`);
+    }
+  }
 
-    await this.db.open();
+  async openDatabase(
+    dbName: string,
+    encrypted: boolean = false,
+    mode: string = 'no-encryption',
+    version: number = 1,
+    readonly: boolean = false
+  ): Promise<SQLiteDBConnection> {
+    const retCC = (await this.sqliteConnection.checkConnectionsConsistency()).result;
+    const isConn = (await this.sqliteConnection.isConnection(dbName, readonly)).result;
 
-    await this.db.execute(`
+    if (retCC && isConn) {
+      this.db = await this.sqliteConnection.retrieveConnection(dbName, readonly);
+      console.log(`Conexión existente recuperada: ${dbName}`);
+    } else {
+      this.db = await this.sqliteConnection.createConnection(dbName, encrypted, mode, version, readonly);
+      console.log(`Nueva conexión creada: ${dbName}`);
+    }
+
+    try {
+      await this.db.open();
+    } catch (err) {
+      console.warn('DB ya estaba abierta');
+    }
+
+    return this.db;
+  }
+
+  async retrieveConnection(dbName: string, readonly: boolean = false): Promise<SQLiteDBConnection> {
+    return await this.sqliteConnection.retrieveConnection(dbName, readonly);
+  }
+
+  async closeConnection(dbName: string, readonly: boolean = false): Promise<void> {
+    return await this.sqliteConnection.closeConnection(dbName, readonly);
+  }
+
+  async addUpgradeStatement(options: capSQLiteUpgradeOptions): Promise<void> {
+    await this.sqlitePlugin.addUpgradeStatement(options);
+  }
+
+  async initDB(): Promise<SQLiteDBConnection> {
+    await this.initializePlugin();
+    // if (this.platform === 'web') await this.initWebStore();
+
+    const db = await this.openDatabase('test_ionic', false, 'no-encryption', 1, false);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         due_date TEXT,
-        status TEXT CHECK(status IN ('pending', 'in_progress', 'completed')) NOT NULL,
+        status TEXT CHECK(status IN ('pending','in_progress','completed')) NOT NULL,
         user_id INTEGER NOT NULL,
         synced INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
@@ -53,14 +116,10 @@ export class DbService {
       );
     `);
 
-    return this.db;
+    return db;
   }
 
   async addTask(data: any) {
-    if (!this.db) {
-      return Promise.reject('DB no inicializada.');
-    }
-
     let add_data = [
       data.title, 
       data.description, 
@@ -71,7 +130,9 @@ export class DbService {
     ];
 
     try {
-      const res = await this.db.run(`INSERT INTO tasks (title, description, due_date, status, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`, add_data);
+      const db = await this.initDB();
+
+      const res = await db.run(`INSERT INTO tasks (title, description, due_date, status, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`, add_data);
 
       let changes = 0;
       if (res && 'changes' in res) {
@@ -91,10 +152,11 @@ export class DbService {
 
       return {
         success: changes > 0,
-        message: 'Tarea agregada correctamente',
+        message: changes > 0 ? 'Tarea agregada correctamente' : 'No se agregó la tarea',
         id: lastId
       };
     } catch (err) {
+      console.error('Error agregando tarea:', err);
       return {
         success: false,
         message: 'Error al agregar tarea',
@@ -104,10 +166,6 @@ export class DbService {
   }
 
   async updateTask(id: number, data: any) {
-    if (!this.db) {
-      return Promise.reject('DB no inicializada.');
-    }
-
     let update_data = [
       data.title, 
       data.description, 
@@ -119,7 +177,9 @@ export class DbService {
     ];
 
     try {
-      const res = await this.db.run(`UPDATE tasks SET title = ?, description = ?, due_date = ?, status = ?, user_id = ?, synced = ?, updated_at = ? WHERE id = ${id}`, update_data);
+      const db = await this.initDB();
+
+      const res = await db.run(`UPDATE tasks SET title = ?, description = ?, due_date = ?, status = ?, user_id = ?, synced = ?, updated_at = ? WHERE id = ${id}`, update_data);
 
       let changes: number = 0;
       if (res && 'changes' in res) {
@@ -132,9 +192,10 @@ export class DbService {
 
       return {
         success: changes > 0,
-        message: 'Tarea editada correctamente'
+        message: changes > 0 ? 'Tarea editada correctamente' : 'No se editó la tarea',
       };
     } catch (err) {
+      console.error('Error editando tarea:', err);
       return {
         success: false,
         message: 'Error al editar la tarea',
@@ -144,16 +205,14 @@ export class DbService {
   }
 
   async updateStatusTask(id: number, data: any) {
-    if (!this.db) {
-      return Promise.reject('DB no inicializada.');
-    }
-
     let update_data = [
       data.status
     ];
 
     try {
-      const res = await this.db.run(`UPDATE tasks SET status = ? WHERE id = ${id}`, update_data);
+      const db = await this.initDB();
+
+      const res = await db.run(`UPDATE tasks SET status = ? WHERE id = ${id}`, update_data);
 
       let changes: number = 0;
       if (res && 'changes' in res) {
@@ -166,9 +225,10 @@ export class DbService {
 
       return {
         success: changes > 0,
-        message: 'Tarea editada correctamente'
+        message: changes > 0 ? 'Tarea editada correctamente' : 'No se editó la tarea',
       };
     } catch (err) {
+      console.error('Error editando tarea:', err);
       return {
         success: false,
         message: 'Error al editar la tarea',
@@ -178,44 +238,72 @@ export class DbService {
   }
 
   async deleteTask(id: number) {
-    if (!this.db) {
-      return Promise.reject('DB no inicializada.');
-    }
+    try {
+      const db = await this.initDB();
 
-    return await this.db.run(`DELETE FROM tasks WHERE id = ?`, [id])
-    .then(() => {
-      return { success: true, message: 'Tarea eliminada correctamente' };
-    })
-    .catch(err => {
-      return { success: false, message: 'Error al eliminar tarea', error: err };
-    });
+      return await db.run(`DELETE FROM tasks WHERE id = ?`, [id])
+      .then(() => {
+        return { success: true, message: 'Tarea eliminada correctamente' };
+      })
+      .catch(err => {
+        return { success: false, message: 'Error al eliminar tarea', error: err };
+      });
+    } catch (err) {
+      console.error('Error eliminando tarea:', err);
+      return {
+        success: false,
+        message: 'Error al editar la tarea',
+        error: err
+      };
+    }
   }
 
   async deleteTasks() {
-    if (!this.db) {
-      return Promise.reject('DB no inicializada.');
-    }
+    try {
+      const db = await this.initDB();
 
-    return await this.db.run(`DELETE FROM tasks`, [])
-    .then(() => {
-      return { success: true, message: 'Tareas eliminadas correctamente' };
-    })
-    .catch(err => {
-      return { success: false, message: 'Error al eliminar tareas', error: err };
-    });
+      return await db.run(`DELETE FROM tasks`, [])
+      .then(() => {
+        return { success: true, message: 'Tareas eliminadas correctamente' };
+      })
+      .catch(err => {
+        return { success: false, message: 'Error al eliminar tareas', error: err };
+      });
+    } catch (err) {
+      console.error('Error eliminando tareas:', err);
+      return {
+        success: false,
+        message: 'Error al eliminar tareas',
+        error: err
+      };
+    }
   }
 
   async getTasks() {
-    if (!this.db) return [];
+    try {
+      const db = await this.initDB();
+    
+      if (!db) return [];
 
-    const result = await this.db.query(`SELECT * FROM tasks WHERE synced = 0`);
-    return result.values || [];
+      const result = await db.query(`SELECT * FROM tasks WHERE synced = 0`);
+      return result.values || [];
+    } catch (err) {
+      console.error('Error al consultar tareas tareas:', err);
+      return [];
+    }
   }
 
   async getTask(id: number) {
-    if (!this.db) return [];
+    try {
+      const db = await this.initDB();
+    
+      if (!db) return [];
 
-    const res = await this.db.query(`SELECT * FROM tasks WHERE id = ?`, [id]);
-    return res.values || [];
+      const res = await db.query(`SELECT * FROM tasks WHERE id = ?`, [id]);
+      return res.values || [];
+    } catch (err) {
+      console.error('Error al consultar tareas tareas:', err);
+      return [];
+    }
   }
 }

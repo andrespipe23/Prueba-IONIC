@@ -39,6 +39,7 @@ export class TaskPage implements OnInit {
   public description: string = "";
   public due_date: string = new Date().toISOString();
   public status: string = "";
+  pendingTasks: { task: any, task_id: number }[] = [];
 
   constructor(
     private loadingController: LoadingController,
@@ -68,30 +69,39 @@ export class TaskPage implements OnInit {
       await this.presentLoading('Espera un momento por favor');
 
       if(this.synced) {
-        await this.http.get(this.URL_BASE + 'tasks/' + this.task_id).subscribe((res: any) => {
-          let datafromserver: any = (JSON.parse(JSON.stringify(res)));
+        let network = await Network.getStatus();
+        if (network && network.connected) {
+          await this.http.get(this.URL_BASE + 'tasks/' + this.task_id).subscribe((res: any) => {
+            let datafromserver: any = (JSON.parse(JSON.stringify(res)));
 
-          if(datafromserver.success) {
-            if(datafromserver.data) {
-              this.task = datafromserver.data;
+            if(datafromserver.success) {
+              if(datafromserver.data) {
+                this.task = datafromserver.data;
 
-              if(this.task) {
-                this.title = this.task.title;
-                this.description = this.task.description;
-                this.due_date = this.task.due_date;
-                this.status = this.task.status;
+                if(this.task) {
+                  this.title = this.task.title;
+                  this.description = this.task.description;
+                  this.due_date = this.task.due_date;
+                  this.status = this.task.status;
+                }
               }
-            }
 
+              this.dismissLoader();
+            } else {
+              this.dismissLoader();
+              this.presentMessage("Algo salió mal", datafromserver.message);
+            }
+          }, (error: any) => {
             this.dismissLoader();
-          } else {
-            this.dismissLoader();
-            this.presentMessage("Algo salió mal", datafromserver.message);
-          }
-        }, (error: any) => {
+            this.presentMessage("Algo salió mal", error.error.message);
+            if(this.is_modal) {
+              this.dismiss(true);
+            }
+          });
+        } else {
           this.dismissLoader();
-          this.presentMessage("Algo salió mal", error.error.message);
-        });
+          this.presentMessage("Algo salió mal", "No tiene conexión a internet, esta tarea ya esta sincronizada");
+        }
       } else {
         try {
           const task = await this.db.getTask(this.task_id);
@@ -158,7 +168,6 @@ export class TaskPage implements OnInit {
           task.updated_at = moment(new Date()).format("yyyy-MM-DD");
 
           const result = this.db.updateTask(task_id, task);
-          console.log(result);
 
           if(this.is_modal) {
             this.dismiss(true);
@@ -174,13 +183,6 @@ export class TaskPage implements OnInit {
     } else {
       this.dismissLoader();
       this.presentMessage("Tarea registrada", "No hay conexión a Internet, por lo que la tarea se guardó localmente. Se sincronizará automáticamente cuando la conexión esté disponible.");
-
-      Network.addListener('networkStatusChange', status => {
-        if (status.connected) {
-          let { id, ...taskWithoutId } = task;
-          this.uploadTask(taskWithoutId, task_id);
-        }
-      });
 
       if(this.is_modal) {
         this.dismiss(true);
@@ -245,7 +247,7 @@ export class TaskPage implements OnInit {
 
   selectDate(event: any) {
     this.due_date = event.detail.value;
-}
+  }
 
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

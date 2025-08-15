@@ -67,6 +67,7 @@ export class TasksPage {
   async loadTasks() {
     await this.presentLoading('Espera un momento por favor');
 
+    this.data = new Array();
     this.position_package = 0;
 
     try {
