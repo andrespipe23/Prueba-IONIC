@@ -1,0 +1,77 @@
+<ion-content>
+  <div class="container py-3">
+    <div class="text-center mb-4">
+      <img src="./assets/logo.png" class="rounded-circle img-fluid" style="width: 120px; height: 120px; object-fit: cover;" alt="Logo" />
+    </div>
+
+    <div class="text-white text-center mt-4 mb-4">
+      <h1>BIENVENIDO</h1>
+    </div>
+
+    <form (ngSubmit)="login()" [formGroup]="credentials" autocomplete="on" class="mx-auto" style="max-width: 400px;">
+
+      <!-- Email -->
+      <div class="mb-3">
+        <ion-item class="mb-1" lines="none" class="form-control rounded-pill m-0 p-1">
+          <ion-icon name="person-circle-outline" slot="start" class="text-primary m-1"></ion-icon>
+          
+          <ion-input
+            type="email"
+            placeholder="Ingrese su usuario"
+            name="email"
+            autocomplete="email"
+            formControlName="email"
+            required
+            autofocus
+            clearInput="false"
+          ></ion-input>
+
+          <ion-icon 
+            name="close-circle-outline" 
+            slot="end" 
+            class="text-secondary m-1"
+            (click)="clearField('email')"
+          ></ion-icon>
+        </ion-item>
+        <ion-text color="danger" *ngIf="email?.dirty || email?.touched">
+          <small *ngIf="email?.errors?.['required']">El correo es obligatorio.</small>
+          <small *ngIf="email?.errors?.['email']">El correo es inválido.</small>
+        </ion-text>
+      </div>
+
+      <!-- Contraseña -->
+      <div class="mb-1">
+        <ion-item class="mb-1" lines="none" class="form-control rounded-pill m-0 p-1">
+          <ion-icon name="lock-open-outline" slot="start" class="text-primary m-1"></ion-icon>
+
+          <ion-input
+            [type]="showPassword ? 'text' : 'password'"
+            placeholder="Ingrese su contraseña"
+            name="password"
+            autocomplete="current-password"
+            formControlName="password"
+            required
+            autofocus
+            clearInput="false"
+          ></ion-input>
+
+          <ion-icon
+            [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+            slot="end"
+            class="text-secondary m-1"
+            (click)="togglePasswordVisibility()"
+          ></ion-icon>
+        </ion-item>
+        <ion-text color="danger" *ngIf="password?.dirty || password?.touched">
+          <small *ngIf="password?.errors?.['required']">La contraseña es obligatoria.</small>
+          <small *ngIf="password?.errors?.['minlength']">La contraseña necesita 6 caracteres o más</small>
+        </ion-text>
+      </div>
+
+      <!-- Botón de ingreso -->
+      <div class="d-grid mt-4">
+        <button type="submit" class="btn btn-dark btn-lg rounded-pill" [disabled]="!credentials.valid">Ingresar</button>
+      </div>
+    </form>
+  </div>
+</ion-content>

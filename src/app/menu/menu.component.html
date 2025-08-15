@@ -1,0 +1,35 @@
+<ion-menu menuId="menu-content" contentId="main-content" type="overlay">
+  <ion-header>
+    <ion-toolbar color="primary" class="p-1">
+      <ion-title>Menu</ion-title>
+      <ion-buttons slot="end">
+        <ion-menu-button auto-hide="false"></ion-menu-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ion-list id="inbox-list">
+      <div *ngIf="user">
+        <ion-list-header>{{ user.name }}</ion-list-header>
+        <ion-note>{{ user.email }}</ion-note>
+      </div>
+
+      <ion-menu-toggle auto-hide="false">
+        <ion-item *ngFor="let p of menus; let i = index" routerDirection="root" (click)="goToModule(p.url)" lines="none" detail="false" [class.selected]="currentUrl === p.url">
+          <ion-icon aria-hidden="true" slot="start" [ios]="p.icon + '-outline'" [md]="p.icon + '-outline'"></ion-icon>
+          <ion-label>{{ p.title }}</ion-label>
+        </ion-item>
+        
+        <ion-item routerDirection="root" lines="none" detail="false" (click)="logout()">
+          <ion-icon aria-hidden="true" slot="start" [ios]="'power-outline'" [md]="'power-sharp'"></ion-icon>
+          <ion-label>Logout</ion-label>
+        </ion-item>
+        
+        <ion-item routerDirection="root" lines="none" detail="false">
+          <ion-label>v. {{ VERSION }}</ion-label>
+        </ion-item>
+      </ion-menu-toggle>
+    </ion-list>
+  </ion-content>
+</ion-menu>

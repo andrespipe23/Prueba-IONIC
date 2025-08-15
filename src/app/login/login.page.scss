@@ -1,0 +1,48 @@
+ion-content {
+  --padding-top: 10%;
+  --padding-start: 10%;
+  --padding-end: 10%;
+  --background: var(--ion-color-primary);
+}
+
+.input-group {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.input-group span {
+  font-size: 20px;
+}
+
+.errors {
+  font-size: small;
+  color: #fff;
+  text-align: center;
+  margin: -10px 0 10px;
+  /*background: var(--ion-color-danger);*/
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  transition: background-color 5000s ease-in-out 0s;
+  -webkit-text-fill-color: #000 !important;
+  box-shadow: 0 0 0px 1000px #fff inset !important;
+}
+
+input.form-control {
+  background-color: #fff !important;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+input.form-control:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}

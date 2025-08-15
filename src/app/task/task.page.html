@@ -1,0 +1,57 @@
+<ion-header>
+  <ion-toolbar color="primary" class="p-1" style="border: none">
+    <ion-buttons slot="end">
+      <ion-button shape="round" size="large" (click)="dismiss()">
+        <ion-icon name="close-circle-outline" *ngIf="is_modal"></ion-icon>
+        <ion-icon name="home-outline" *ngIf="!is_modal"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title *ngIf="edit == false">Crear tarea</ion-title>
+    <ion-title *ngIf="edit">Editar tarea</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content fullscreen="true">
+  <ion-grid class="content-fullscreen">    
+    <ion-list [inset]="true">
+      <ion-item *ngIf="edit">
+        <ion-toggle aria-label="Success toggle" color="primary" [(ngModel)]="synced" disabled>Sincronizada</ion-toggle>
+      </ion-item>
+
+      <ion-item lines="none">
+        <ion-input type="text" label="Título" labelPlacement="floating" [(ngModel)]="title" [counter]="true" maxlength="200"></ion-input>
+      </ion-item>
+
+      <ion-item lines="none">
+        <ion-textarea type="text" label="Descripción" labelPlacement="floating" [(ngModel)]="description" [autoGrow]="true" [counter]="true" maxlength="1000"></ion-textarea>
+      </ion-item>
+
+      <ion-item id="date-trigger" button detail="false">
+        <ion-input type="text" label="Fecha de vencimiento" labelPlacement="floating" [value]="due_date ? (due_date | date:'dd/MM/yyyy') : 'Seleccionar'"></ion-input>
+      <ion-popover #datePopover trigger="date-trigger" arrow="true" side="bottom" alignment="end" showBackdrop="true" cssClass="calendar-popover">
+        <ng-template>
+          <ion-datetime
+            presentation="date"
+            [(ngModel)]="due_date"
+            (ionChange)="selectDate($event)"
+            showDefaultButtons="true"
+            doneText="Seleccionar" 
+            cancelText="Cancelar"
+          ></ion-datetime>
+        </ng-template>
+      </ion-popover>
+      </ion-item>
+
+      <ion-item class="mt-2">
+        <ion-select label="Estado" labelPlacement="floating" placeholder="Seleccione" interface="alert" [(ngModel)]="status">
+          <ion-select-option *ngFor="let data of statuses" [value]="data">
+            {{ data }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button *ngIf="edit == false" color="primary" expand="block" (click)="storeTask()" class="my-2">REGISTRAR</ion-button>
+      <ion-button *ngIf="edit" color="primary" expand="block" (click)="updateTask()" class="my-2">GUARDAR</ion-button>
+    </ion-list>
+  </ion-grid>
+</ion-content>
