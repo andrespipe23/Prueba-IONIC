@@ -13,8 +13,8 @@ export class ConfigurationService {
     /* Configuracion de url del servidor Api Rest */
     // this.URL_BASE = 'http://127.0.0.1:8000/api/';
     // this.URL_WEB = 'http://127.0.0.1:8000';
-    this.URL_BASE = 'http://3.81.158.17/api/';
-    this.URL_WEB = 'http://3.81.158.17';
+    this.URL_BASE = 'https://taskify-api.site/api/';
+    this.URL_WEB = 'https://taskify-api.site';
     this.VERSION = '1.0';
   }
 

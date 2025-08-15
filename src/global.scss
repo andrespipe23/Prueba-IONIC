@@ -77,3 +77,11 @@
   --height: auto;
   --backdrop-opacity: 0.2;
 }
+
+ion-header, ion-toolbar {
+  padding-top: env(safe-area-inset-top);
+}
+
+.content-fullscreen {
+  padding-bottom: env(safe-area-inset-bottom);
+}
